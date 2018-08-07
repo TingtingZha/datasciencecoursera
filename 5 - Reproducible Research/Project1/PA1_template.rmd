@@ -1,0 +1,130 @@
+---
+title: "Course Project 1"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+## Introduction
+
+The data for this assignment can be downloaded from the course web site:
+
+- Dataset: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
+
+The variables included in this dataset are:  
+
+- **steps**: Number of steps taking in a 5-minute interval (missing values are coded as red)  
+- **date**: The date on which the measurement was taken in YYYY-MM-DD format  
+- **interval**: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.  
+
+###Download and loading the data
+**Load the data:  **
+```{r}
+path <- getwd()  
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip" 
+download.file(url, file.path(path, "dataset.zip"))  
+unzip(zipfile = "dataset.zip")
+activity<-read.csv("activity.csv") 
+```
+
+### What is mean total number of steps taken per day?
+1. Calculate the total number of steps taken per day and make a histogram.    
+```{r}
+stepsperday <- aggregate(steps ~ date, data = activity, FUN = sum)
+head(stepsperday)
+with(stepsperday,hist(steps,xlab = "Steps", breaks = 15,col="lightblue",main = "Histogram of the total number of steps per day"))
+
+```
+ 
+
+2. Calculate and report the mean and median of the total number of steps taken per day
+
+```{r}
+meansteps<-mean(stepsperday$steps)
+mediansteps<-median(stepsperday$steps)
+```
+- The mean of the total number of steps taken per day is `r meansteps`.  
+- The median of the total number of steps taken per day is `r mediansteps`.  
+
+### What is the average daily activity pattern?
+
+1. Make a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).  
+
+```{r}
+steps_5mins <- aggregate(steps ~ interval, data = activity, FUN = mean, na.rm = TRUE)
+with(steps_5mins,plot(interval,steps,type = "l",col="blue",lwd=2,
+      xlab ="5-minutes Intervals", ylab="Average steps per day", 
+      main="Average number of steps taken during each 5-minute interval"))
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?  
+
+```{r}
+steps_5mins[which.max(steps_5mins$steps),]
+```
+
+- The 5-minute interval that, on average across all the days in the data set, contains the maximum number of steps is interval number 835 (contains 206.1698 steps).  
+
+### Imputing missing values
+- Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.  
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)  
+```{r}
+missingvalues<-sum(is.na(activity$steps))
+missingvalues
+```
+- The total number of rows with NAs is `r missingvalues`.  
+
+2.  Create a new dataset that is equal to the original dataset but with the missing data filled in. The strategy is to fill up all the missing values with the mean for that 5-minute interval.  
+```{r}
+activitynoNA<-activity
+narows <- which(is.na(activity$steps))
+for(i in narows){
+  activitynoNA$steps[i] <- steps_5mins$steps[steps_5mins$interval==activitynoNA$interval[i]]
+}
+# Check the missing Values in the new dataset.
+sum(is.na(activitynoNA$steps))
+```
+ 
+3. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?  
+```{r}
+stepsnoNA <- aggregate(steps ~ date, data = activitynoNA, FUN = sum)
+with(stepsnoNA,hist(steps,xlab = "Steps", breaks = 15,col="lightblue",main = "Histogram of the total number of steps per day with imputing missing data"))
+meanstepsnew<-mean(stepsnoNA$steps)
+medianstepsnew<-median(stepsnoNA$steps)
+```
+```{r echo=FALSE}
+xt<-rbind(cbind("Original",round(meansteps),round(mediansteps)),cbind("without_NA",round(meanstepsnew),round(medianstepsnew)))
+colnames(xt)<-c("Type of Estimate","Mean_Steps","Median_Steps")
+print(xt)
+```
+- The mean of the total number of steps taken per day is `r meanstepsnew`, which is identical to the mean total number of steps taken per day in the original data set.   
+- The median of the total number of steps taken per day is `r medianstepsnew`, up from the median steps in the original data set.  
+- Imputing missing data with the mean for that 5-minute interval had little impact on the mean and median total number of steps taken per day, despite a fairly high percentage of missing values.  
+
+### Are there differences in activity patterns between weekdays and weekends?
+- For this part use the dataset with the filled-in missing values for this part.  
+
+1. Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.  
+```{r}
+activitynoNA$date<-as.POSIXct(activitynoNA$date)
+activitynoNA$weekdays<-weekdays(activitynoNA$date)
+activitynoNA$weekdays <- gsub('Saturday|Sunday', 'Weekend', activitynoNA$weekdays)
+activitynoNA$weekdays <- gsub('Monday|Tuesday|Wednesday|Thursday|Friday', 'Weekday', activitynoNA$weekdays)
+```
+
+2. Make a panel plot containing a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.  
+```{r}
+steps_weekdays <- aggregate(steps ~ interval+weekdays, data = activitynoNA, FUN = mean, na.rm = TRUE)
+library(lattice)
+xyplot(steps ~ interval | weekdays, data = steps_weekdays,type="l",
+       xlab = "5-minute Interval ",
+       ylab = "Steps",
+       main = "Average number of steps taken across weekday and weekend days",
+       layout=c(1,2))
+```  
+
+- All  
