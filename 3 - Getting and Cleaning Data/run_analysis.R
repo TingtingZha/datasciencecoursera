@@ -47,6 +47,6 @@ tidyData$Activity <- factor(tidyData$Activity,
 # with the average of each variable for each activity and each subject.
 tidyDatamean <- tidyData %>% 
   group_by(Subject, Activity) %>%
-  summarise_each(funs(mean))
+  summarise_all(funs(mean))
 
 write.table(tidyDatamean, file = "tidy_Data.txt", row.names = FALSE,quote = FALSE)
