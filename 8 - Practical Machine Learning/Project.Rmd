@@ -1,0 +1,112 @@
+---
+title: "Practical Machine Learning Project"
+author: "Tingting Zha"
+date: "27 August 2018"
+output: md_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har 
+
+
+## Loading Libraries and reading data  
+
+```{r}
+library(caret)
+library(rpart)
+library(rattle)
+library(randomForest)
+pml_training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),header=TRUE, na.strings=c("","NA"))
+dim(pml_training)
+
+pml_testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE, na.strings = c("","NA"))
+dim(pml_testing)
+```
+
+## Clean the data  
+- Remove columns with missing value using the function is.na.
+- Remove the first seven columns, which informations are not related with the predict classification.
+- Reduced the data to 53 variables.
+
+```{r }
+pml_training<- pml_training[,colSums(is.na(pml_training)) == 0]
+pml_testing<- pml_testing[,colSums(is.na(pml_testing)) == 0]
+pml_training<- pml_training[,-c(1:7)]
+pml_testing<- pml_testing[,-c(1:7)]
+dim(pml_training)
+dim(pml_testing)
+```
+
+## Create Training & Cross Validation Datasets  
+The training set is used for training and for validation, in 70/30 proportion.
+
+```{r }
+inTrain = createDataPartition(pml_training$classe, p = 0.7)[[1]]
+training =pml_training[ inTrain,]
+testing = pml_training[-inTrain,]
+```
+
+## Predictive Model with classification trees  
+A classification tree model is created with 13737 experiments of the training set. A decision tree will be ploted. 
+
+```{r }
+set.seed(12345)
+trainControl <- trainControl(method="cv", number=3, verboseIter=F)
+modFit<- train(classe~., data=training, method="rpart", trControl=trainControl)
+fancyRpartPlot(modFit$finalModel,sub="")
+pred <- predict(modFit,newdata=testing)
+cm_ct <- confusionMatrix(testing$classe,pred)
+cm_ct$table
+cm_ct$overall[1]
+```
+
+- The accuracy of this model is about 49%, which is very low and means that the outcome class predicted not very well.
+
+## Predictive Model with Random Forest  
+Next, a new model with random forest will be created and tested.
+
+```{r}
+modFit1 <- train(classe ~., method="rf", data=training, trControl=trainControl)
+modFit1$finalModel
+```
+
+```{r}
+plot(modFit1$finalModel,main="Accuracy of Random forest model by number of predictors")
+
+pred1 <- predict(modFit1,newdata=testing)
+cm_rf <- confusionMatrix(testing$classe,pred1)
+cm_rf$table
+cm_rf$overall[1]
+
+# Compute the variable importance 
+varImp(modFit1)
+
+```
+
+- With random forest model, the accuracy reached of 99% using cross-validation with 3 steps, far superior to the rpart method. The specificity and sensitivity is in the high 90s for all variables.   
+
+## Predictive Model with gradient boosting method
+```{r}
+modFit2<-train(classe~., method="gbm", data=training, trControl=trainControl, verbose=FALSE)
+pred2<-predict(modFit2,newdata=testing)
+confusionMatrix(pred2, testing$classe)$overall['Accuracy']
+```
+
+- Precision with 3 folds, the accuracy is 96% With gradient boosting method.
+
+## Conclusion  
+- Random Forest is the best model for prediction of exercise quality compared to rpart and gradient boosting. 
+- We will then use it to predict the values of classe for the pml_testing data set.
+
+```{r }
+pred_final <- predict(modFit1,newdata=pml_testing)
+pred_final
+```
