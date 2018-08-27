@@ -121,7 +121,7 @@ training set. A decision tree will be ploted.
     ##  Accuracy 
     ## 0.4791844
 
--   The accuracy of this model is about 49%, which is very low and means
+-   The accuracy of this model is about 48%, which is very low and means
     that the outcome class predicted not very well.
 
 Predictive Model with Random Forest
